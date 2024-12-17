@@ -67,7 +67,6 @@ public class Main {
                                 comparedRow.setMainSystemChecksum(processedChecksums.get(mainFsFilePath));
                                 comparedRow.setComparisonSystemChecksum(processedChecksums.get(referenceFsFilePath));
                                 comparedRow.setSame(comparedRow.getMainSystemChecksum().equals(comparedRow.getComparisonSystemChecksum()));
-                                // System.out.println(comparedRow.toString());
                                 try {
                                     sequenceWriter.write(comparedRow);
                                 } catch (IOException e) {
