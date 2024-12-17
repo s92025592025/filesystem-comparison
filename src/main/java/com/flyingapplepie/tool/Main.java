@@ -50,7 +50,7 @@ public class Main {
                 try (Stream<Path> fsWalker = Files.walk(mainFileSystemBase)) {
                     fsWalker.filter(Files::isRegularFile)
                             .forEach(mainFsFilePath -> {
-                                Path relativePath = mainFsFilePath.relativize(mainFileSystemBase);
+                                Path relativePath = mainFileSystemBase.relativize(mainFsFilePath);
                                 Path referenceFsFilePath = referenceFileSystemBase.resolve(relativePath);
 
                                 Map<Path, FileSha256Calculator> processingBucket = new HashMap<>();
