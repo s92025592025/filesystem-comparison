@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 
 public class FileSha256Calculator {
     private final Path filePathToCalculate;
@@ -17,12 +18,9 @@ public class FileSha256Calculator {
 
     public String getChecksumString() {
         if (filePathToCalculate.toFile().isFile()) {
-            try (InputStream inputStream = new FileInputStream(this.filePathToCalculate.toFile())) {
-                DigestUtils digestUtils = new DigestUtils("SHA3-256");
-                return digestUtils.digestAsHex(inputStream);
-            } catch (
-                    FileNotFoundException e) {
-                return "File Not Found";
+            DigestUtils digestUtils = new DigestUtils("SHA3-256");
+            try {
+                return digestUtils.digestAsHex(this.filePathToCalculate, StandardOpenOption.READ);
             } catch (IOException e) {
                 return "Failed to Read File";
             }
