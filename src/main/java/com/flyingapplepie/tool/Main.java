@@ -1,13 +1,11 @@
 package com.flyingapplepie.tool;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SequenceWriter;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 import com.flyingapplepie.tool.model.ComparedRow;
 import com.flyingapplepie.tool.util.CommandlineHandler;
-import com.flyingapplepie.tool.utlity.FileSha256Calculator;
+import com.flyingapplepie.tool.util.FileSha256Calculator;
 import org.apache.commons.cli.*;
 
 import java.io.File;
@@ -15,7 +13,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;

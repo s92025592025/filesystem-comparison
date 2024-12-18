@@ -1,4 +1,4 @@
-package com.flyingapplepie.tool.utlity;
+package com.flyingapplepie.tool.util;
 
 import org.apache.commons.codec.digest.DigestUtils;
 
