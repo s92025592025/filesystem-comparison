@@ -81,6 +81,22 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven.testing.plugins.version}</version>
+                <executions>
+                    <execution>
+                        <id>custom-integration-test</id>
+                        <phase>integration-test</phase>
+                        <configuration>
+                            <groups>integration</groups>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>custom-test</id>
+                        <phase>test</phase>
+                        <configuration>
+                            <excludedGroups>integration</excludedGroups>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
