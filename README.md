@@ -20,3 +20,8 @@ java -jar .\filesystem-comparision-<version>-jar-with-dependencies.jar \
   -rf <REFERENCE FILESYSTEM DIRECTORY> \
   -o <PATH TO SAVE REPORT CSV FILE> 
 ```
+
+To get the details of each flag, run the following:
+```shell
+java -jar .\filesystem-comparision-<version>-jar-with-dependencies.jar -h
+```
