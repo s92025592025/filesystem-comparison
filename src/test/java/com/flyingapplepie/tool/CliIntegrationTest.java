@@ -1,11 +1,17 @@
 package com.flyingapplepie.tool;
 
+import com.fasterxml.jackson.databind.MappingIterator;
+import com.fasterxml.jackson.dataformat.csv.CsvMapper;
+import com.fasterxml.jackson.dataformat.csv.CsvSchema;
+import com.flyingapplepie.tool.model.ComparedRow;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -43,19 +49,74 @@ class CliIntegrationTest {
      * Test the output when 2 same file systems are the same
      */
     @Test
-    public void exactSameFileSystemTest() {
-        fail();
+    public void exactSameFileSystemTest() throws IOException {
+        Path mainFSDirectoryPath = Files.createTempDirectory("temp-test-main-fs-").toAbsolutePath();
+        Path referenceFSDirectoryPath = Files.createTempDirectory("tmp-test-reference-fs-").toAbsolutePath();
+        Path tmpReportFile = Files.createTempFile("report-output-", ".csv").toAbsolutePath();
+
+        mainFSDirectoryPath.toFile().deleteOnExit();
+        referenceFSDirectoryPath.toFile().deleteOnExit();
+        tmpReportFile.toFile().deleteOnExit();
+
+        int totalFiles = 10;
+        String fileNameTemplate = "sample-file-%d.txt";
+        String fileContentTemplate = "this is sample content %d";
+
+        for (int i = 0; i < totalFiles; i++) {
+            String fileName = fileNameTemplate.formatted(i);
+            String fileContent = fileContentTemplate.formatted(i);
+            try (PrintWriter mainFsFilePrintWriter
+                         = new PrintWriter(mainFSDirectoryPath.resolve(fileName).toString())) {
+                mainFsFilePrintWriter.println(fileContent);
+            }
+
+            try (PrintWriter referenceFsFilePrintWriter = new PrintWriter(
+                    referenceFSDirectoryPath.resolve(fileName).toString()
+            )) {
+                referenceFsFilePrintWriter.println(fileContent);
+            }
+        }
+
+        String args[] = {
+                "-mf", mainFSDirectoryPath.toString(),
+                "-rf", referenceFSDirectoryPath.toString(),
+                "-o", tmpReportFile.toString()
+        };
+
+        Main.main(args);
+
+        CsvMapper csvMapper = new CsvMapper();
+        CsvSchema csvSchema = csvMapper
+                .typedSchemaFor(ComparedRow.class)
+                .withHeader()
+                .withColumnReordering(true);
+
+        try(MappingIterator<ComparedRow> reportRowIterator = csvMapper
+                .readerWithSchemaFor(ComparedRow.class)
+                .with(csvSchema)
+                .readValues(tmpReportFile.toFile())) {
+            List<ComparedRow> fullReport = reportRowIterator.readAll();
+
+            assertEquals(totalFiles, fullReport.size());
+            fullReport.forEach(row -> {
+                assertTrue(row.isSame());
+            });
+        }
     }
 
     /**
      * Test when the reference file system has missing file
      */
     @Test
-    public void referenceFileSystemHasMissingFile() {}
+    public void referenceFileSystemHasMissingFile() {
+        fail();
+    }
 
     /**
      * Test when the reference file system has a file with same relative path but different checksum
      */
     @Test
-    public void referenceFileSystemHasDifferentFile() {}
+    public void referenceFileSystemHasDifferentFile() {
+        fail();
+    }
 }
