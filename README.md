@@ -6,3 +6,5 @@ For example, if main filesystem `example/main/source/` has `this/is/an/example/f
 
 Eventually, the tool will generate a CSV report with all the compared files, checksums, and whether there are difference between the files compared.
 
+## Prerequisite
+* Java 21+
