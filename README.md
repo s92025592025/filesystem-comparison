@@ -25,3 +25,15 @@ To get the details of each flag, run the following:
 ```shell
 java -jar .\filesystem-comparision-<version>-jar-with-dependencies.jar -h
 ```
+
+## Help Output
+```text
+usage: filesystem-comparison: Check if the files on main file system also
+                              exists on the reference file system, and
+                              compare the checksum
+ -h,--help                  Help command
+ -mf,--main-fs <arg>        Main file system base directory when comparing
+ -o,--output <arg>          Where the output csv file should go
+ -rf,--reference-fs <arg>   Reference file system base directory when
+                            comparing
+```
