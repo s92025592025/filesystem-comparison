@@ -24,7 +24,7 @@ class CliIntegrationTest {
      * Tests the behavior which required options are not provided
      */
     @Test
-    public void cliShowErrorWhenRequiredOptionsNotProvideTest() {
+    public void showErrorWhenRequiredOptionsNotProvideTest() {
         ByteArrayOutputStream outArray = new ByteArrayOutputStream();
         ByteArrayOutputStream errArray = new ByteArrayOutputStream();
         String args[] = {};
@@ -38,4 +38,24 @@ class CliIntegrationTest {
                 errArray.toString().trim()
         );
     }
+
+    /**
+     * Test the output when 2 same file systems are the same
+     */
+    @Test
+    public void exactSameFileSystemTest() {
+        fail();
+    }
+
+    /**
+     * Test when the reference file system has missing file
+     */
+    @Test
+    public void referenceFileSystemHasMissingFile() {}
+
+    /**
+     * Test when the reference file system has a file with same relative path but different checksum
+     */
+    @Test
+    public void referenceFileSystemHasDifferentFile() {}
 }
