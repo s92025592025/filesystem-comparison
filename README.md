@@ -8,3 +8,15 @@ Eventually, the tool will generate a CSV report with all the compared files, che
 
 ## Prerequisite
 * Java 21+
+
+## How to Install
+1. Download the jar from https://github.com/s92025592025/filesystem-comparison/packages/2348260 Assets Section. The jar should follow a pattern `filesystem-comparision-<versions>-jar-with-dependencies.jar`
+
+## How to Run
+To perform the comparison, the command should be formatted as below:
+```shell
+java -jar .\filesystem-comparision-<version>-jar-with-dependencies.jar \
+  -mf <MAIN FILESYSTEM DIRECTORY> \
+  -rf <REFERENCE FILESYSTEM DIRECTORY> \
+  -o <PATH TO SAVE REPORT CSV FILE> 
+```
