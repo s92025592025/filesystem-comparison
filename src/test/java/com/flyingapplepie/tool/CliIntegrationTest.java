@@ -125,6 +125,12 @@ class CliIntegrationTest {
             mainFsFilePrintWriter.println(fileContentTemplate.formatted(0));
         }
 
+        try (PrintWriter referenceFsFilePrintWriter = new PrintWriter(
+                referenceFSDirectoryPath.resolve(fileNameTemplate.formatted(0)).toString()
+        )) {
+            referenceFsFilePrintWriter.println(fileContentTemplate.formatted(1));
+        }
+
         String args[] = {
                 "-mf", mainFSDirectoryPath.toString(),
                 "-rf", referenceFSDirectoryPath.toString(),
@@ -149,14 +155,53 @@ class CliIntegrationTest {
                 assertFalse(row.isSame());
                 assertEquals("Not a File", row.getComparisonSystemChecksum());
             });
-        }
+            }
     }
 
     /**
      * Test when the reference file system has a file with same relative path but different checksum
      */
     @Test
-    public void referenceFileSystemHasDifferentFile() {
-        fail();
+    public void referenceFileSystemHasDifferentFile() throws IOException {
+        Path mainFSDirectoryPath = Files.createTempDirectory("temp-test-main-fs-").toAbsolutePath();
+        Path referenceFSDirectoryPath = Files.createTempDirectory("tmp-test-reference-fs-").toAbsolutePath();
+        Path tmpReportFile = Files.createTempFile("report-output-", ".csv").toAbsolutePath();
+
+        mainFSDirectoryPath.toFile().deleteOnExit();
+        referenceFSDirectoryPath.toFile().deleteOnExit();
+        tmpReportFile.toFile().deleteOnExit();
+
+        String fileNameTemplate = "sample-file-%d.txt";
+        String fileContentTemplate = "this is sample content %d";
+
+        try (PrintWriter mainFsFilePrintWriter
+                     = new PrintWriter(mainFSDirectoryPath.resolve(fileNameTemplate.formatted(0)).toString())) {
+            mainFsFilePrintWriter.println(fileContentTemplate.formatted(0));
+        }
+
+        String args[] = {
+                "-mf", mainFSDirectoryPath.toString(),
+                "-rf", referenceFSDirectoryPath.toString(),
+                "-o", tmpReportFile.toString()
+        };
+
+        Main.main(args);
+        CsvMapper csvMapper = new CsvMapper();
+        CsvSchema csvSchema = csvMapper
+                .typedSchemaFor(ComparedRow.class)
+                .withHeader()
+                .withColumnReordering(true);
+
+        try(MappingIterator<ComparedRow> reportRowIterator = csvMapper
+                .readerWithSchemaFor(ComparedRow.class)
+                .with(csvSchema)
+                .readValues(tmpReportFile.toFile())) {
+            List<ComparedRow> fullReport = reportRowIterator.readAll();
+
+            assertEquals(1, fullReport.size());
+            fullReport.forEach(row -> {
+                assertFalse(row.isSame());
+            });
+        }
     }
 }
