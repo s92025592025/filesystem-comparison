@@ -125,12 +125,6 @@ class CliIntegrationTest {
             mainFsFilePrintWriter.println(fileContentTemplate.formatted(0));
         }
 
-        try (PrintWriter referenceFsFilePrintWriter = new PrintWriter(
-                referenceFSDirectoryPath.resolve(fileNameTemplate.formatted(0)).toString()
-        )) {
-            referenceFsFilePrintWriter.println(fileContentTemplate.formatted(1));
-        }
-
         String args[] = {
                 "-mf", mainFSDirectoryPath.toString(),
                 "-rf", referenceFSDirectoryPath.toString(),
@@ -177,6 +171,12 @@ class CliIntegrationTest {
         try (PrintWriter mainFsFilePrintWriter
                      = new PrintWriter(mainFSDirectoryPath.resolve(fileNameTemplate.formatted(0)).toString())) {
             mainFsFilePrintWriter.println(fileContentTemplate.formatted(0));
+        }
+
+        try (PrintWriter referenceFsFilePrintWriter = new PrintWriter(
+                referenceFSDirectoryPath.resolve(fileNameTemplate.formatted(0)).toString()
+        )) {
+            referenceFsFilePrintWriter.println(fileContentTemplate.formatted(1));
         }
 
         String args[] = {
