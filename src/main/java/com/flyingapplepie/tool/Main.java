@@ -3,6 +3,8 @@ package com.flyingapplepie.tool;
 import com.fasterxml.jackson.databind.SequenceWriter;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
+import com.flyingapplepie.tool.job.FileComparisonJob;
+import com.flyingapplepie.tool.model.ChecksumType;
 import com.flyingapplepie.tool.model.ComparedRow;
 import com.flyingapplepie.tool.util.CommandlineHandler;
 import com.flyingapplepie.tool.util.FileSha256Calculator;
@@ -41,25 +43,10 @@ public class Main {
                 try (SequenceWriter sequenceWriter = csvMapper.writerFor(ComparedRow.class).with(csvSchema).writeValues(outputCsvFilePath.toFile())) {
                     try (Stream<Path> fsWalker = Files.walk(mainFileSystemBase)) {
                         fsWalker.filter(Files::isRegularFile)
-                                .forEach(mainFsFilePath -> {
-                                    Path relativePath = mainFileSystemBase.relativize(mainFsFilePath);
-                                    Path referenceFsFilePath = referenceFileSystemBase.resolve(relativePath);
-
-                                    Map<Path, FileSha256Calculator> processingBucket = new HashMap<>();
-                                    processingBucket.put(mainFsFilePath, new FileSha256Calculator(mainFsFilePath));
-                                    processingBucket.put(referenceFsFilePath, new FileSha256Calculator(referenceFsFilePath));
-
-                                    Map<Path, String> processedChecksums = processingBucket.entrySet().parallelStream()
-                                            .collect(Collectors.toMap(
-                                                    Map.Entry::getKey,
-                                                    entry -> entry.getValue().getChecksumString()
-                                            ));
-
-                                    ComparedRow comparedRow = new ComparedRow();
-                                    comparedRow.setFilePath(mainFsFilePath.toAbsolutePath().toString());
-                                    comparedRow.setMainSystemChecksum(processedChecksums.get(mainFsFilePath));
-                                    comparedRow.setComparisonSystemChecksum(processedChecksums.get(referenceFsFilePath));
-                                    comparedRow.setSame(comparedRow.getMainSystemChecksum().equals(comparedRow.getComparisonSystemChecksum()));
+                                .map(mainFileSystemBase::relativize)
+                                .map(relativeFilePath -> new FileComparisonJob(mainFileSystemBase.resolve(relativeFilePath), referenceFileSystemBase.resolve(relativeFilePath), ChecksumType.SHA256))
+                                .map(FileComparisonJob::executeComparison)
+                                .forEach(comparedRow -> {
                                     try {
                                         sequenceWriter.write(comparedRow);
                                     } catch (IOException e) {
