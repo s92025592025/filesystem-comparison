@@ -44,7 +44,9 @@ public class Main {
 
                 if (cmd.hasOption("T")) {
                     // Multi-Thread Logic
-                    try (ForkJoinPool fileComparisonPool = new ForkJoinPool(cmd.getParsedOptionValue("T", 4))) {
+                    int threadCount = cmd.getParsedOptionValue("T", 4);
+                    System.out.println("Using " + threadCount + " thread to perform the comparison");
+                    try (ForkJoinPool fileComparisonPool = new ForkJoinPool(threadCount)) {
                         ObjectWriter csvObjectWriter = csvMapper.writerFor(ComparedRow.class).with(csvSchema);
 
                         try (SequenceWriter sequenceWriter = csvObjectWriter.writeValues(outputCsvFilePath.toFile())) {
