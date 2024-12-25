@@ -11,6 +11,7 @@ public class CommandlineHandler {
         cmdOptions.addOption("mf", "main-fs", true, "Main file system base directory when comparing");
         cmdOptions.addOption("rf", "reference-fs", true, "Reference file system base directory when comparing");
         cmdOptions.addOption("o", "output", true, "Where the output csv file should go");
+        cmdOptions.addOption("T", "threads", true, "Indicates the amount of threads wanted to perform the comparison. Please note that this will force the tool to write all results at the end of the full comparison, and will lose all progress when error occurs");
     }
 
     /**
