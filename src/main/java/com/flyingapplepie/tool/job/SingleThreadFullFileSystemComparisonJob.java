@@ -57,6 +57,7 @@ public class SingleThreadFullFileSystemComparisonJob extends FullFileSystemCompa
 
         return FileSystemComparisonSummary.builder()
                 .totalRuntime(endTime - startTime)
+                .totalComparedFileCount(totalFileCount.get())
                 .totalSameFilesCount(totalSameFilesCount.get())
                 .totalDiffFilesCount(totalDiffFilesCount.get())
                 .build();

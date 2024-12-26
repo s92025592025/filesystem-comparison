@@ -6,9 +6,11 @@ import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 import com.flyingapplepie.tool.job.FileComparisonJob;
 import com.flyingapplepie.tool.job.FullFileSystemComparisonJob;
+import com.flyingapplepie.tool.job.MultiThreadFullFileSystemComparisonJob;
 import com.flyingapplepie.tool.job.SingleThreadFullFileSystemComparisonJob;
 import com.flyingapplepie.tool.model.ChecksumType;
 import com.flyingapplepie.tool.model.ComparedRow;
+import com.flyingapplepie.tool.model.FileSystemComparisonSummary;
 import com.flyingapplepie.tool.util.CommandlineHandler;
 import com.flyingapplepie.tool.util.FileSha256Calculator;
 import org.apache.commons.cli.*;
@@ -21,6 +23,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -44,6 +47,7 @@ public class Main {
                         .addColumn("comparisonSystemChecksum")
                         .addColumn("isSame")
                         .build();
+                ObjectWriter csvObjectWriter = csvMapper.writerFor(ComparedRow.class).with(csvSchema);
 
                 FullFileSystemComparisonJob fullFileSystemComparisonJob = null;
 
@@ -51,27 +55,34 @@ public class Main {
                     // Multi-Thread Logic
                     int threadCount = cmd.getParsedOptionValue("T", 4);
                     System.out.println("Using " + threadCount + " thread to perform the comparison");
-                    try (ForkJoinPool fileComparisonPool = new ForkJoinPool(threadCount)) {
-                        ObjectWriter csvObjectWriter = csvMapper.writerFor(ComparedRow.class).with(csvSchema);
+                    fullFileSystemComparisonJob = new MultiThreadFullFileSystemComparisonJob(
+                            mainFileSystemBase,
+                            referenceFileSystemBase,
+                            threadCount,
+                            ChecksumType.SHA256
+                    );
 
-                        try (SequenceWriter sequenceWriter = csvObjectWriter.writeValues(outputCsvFilePath.toFile())) {
-                            List<ComparedRow> allComparisonResults = fileComparisonPool.submit(() -> {
-                                try (Stream<Path> fsWalker = Files.walk(mainFileSystemBase)) {
-                                    return fsWalker.parallel().filter(Files::isRegularFile)
-                                            .map(mainFileSystemBase::relativize)
-                                            .map(relativeFilePath -> new FileComparisonJob(mainFileSystemBase.resolve(relativeFilePath), referenceFileSystemBase.resolve(relativeFilePath), ChecksumType.SHA256))
-                                            .map(FileComparisonJob::executeComparison)
-                                            .toList();
-                                }
-                            }).get();
-
-                            sequenceWriter.writeAll(allComparisonResults);
-                        } catch (ExecutionException e) {
-                            throw new AppException("Failed while performing parallel comparison, please try if single thread runs can remedy this issue\"", e);
-                        } catch (InterruptedException e) {
-                            throw new AppException("Parallel Comparison Interrupted, please try if single thread runs can remedy this issue", e);
-                        }
-                    }
+//                    try (ForkJoinPool fileComparisonPool = new ForkJoinPool(threadCount)) {
+//                        ObjectWriter csvObjectWriter = csvMapper.writerFor(ComparedRow.class).with(csvSchema);
+//
+//                        try (SequenceWriter sequenceWriter = csvObjectWriter.writeValues(outputCsvFilePath.toFile())) {
+//                            List<ComparedRow> allComparisonResults = fileComparisonPool.submit(() -> {
+//                                try (Stream<Path> fsWalker = Files.walk(mainFileSystemBase)) {
+//                                    return fsWalker.parallel().filter(Files::isRegularFile)
+//                                            .map(mainFileSystemBase::relativize)
+//                                            .map(relativeFilePath -> new FileComparisonJob(mainFileSystemBase.resolve(relativeFilePath), referenceFileSystemBase.resolve(relativeFilePath), ChecksumType.SHA256))
+//                                            .map(FileComparisonJob::executeComparison)
+//                                            .toList();
+//                                }
+//                            }).get();
+//
+//                            sequenceWriter.writeAll(allComparisonResults);
+//                        } catch (ExecutionException e) {
+//                            throw new AppException("Failed while performing parallel comparison, please try if single thread runs can remedy this issue\"", e);
+//                        } catch (InterruptedException e) {
+//                            throw new AppException("Parallel Comparison Interrupted, please try if single thread runs can remedy this issue", e);
+//                        }
+//                    }
                 } else {
                     // Single Thread Logic
                     fullFileSystemComparisonJob = new SingleThreadFullFileSystemComparisonJob(
@@ -81,9 +92,14 @@ public class Main {
                     );
                 }
 
-                try (SequenceWriter sequenceWriter = csvMapper.writerFor(ComparedRow.class).with(csvSchema).writeValues(outputCsvFilePath.toFile())) {
+                try (SequenceWriter sequenceWriter = csvObjectWriter.writeValues(outputCsvFilePath.toFile())) {
                     try (Stream<Path> fsWalker = Files.walk(mainFileSystemBase)) {
-                        fullFileSystemComparisonJob.executeComparison(fsWalker, sequenceWriter);
+                        FileSystemComparisonSummary comparisonSummary = fullFileSystemComparisonJob.executeComparison(fsWalker, sequenceWriter);
+
+                        System.out.println("Total Runtime(Minutes): " + TimeUnit.MILLISECONDS.toSeconds(comparisonSummary.getTotalRuntime()));
+                        System.out.println("Total Files Compared: " + comparisonSummary.getTotalComparedFileCount());
+                        System.out.println("Total Same files: " + comparisonSummary.getTotalSameFilesCount());
+                        System.out.println("Total Different files: " + comparisonSummary.getTotalDiffFilesCount());
                     } catch (Exception e) {
                         throw new AppException(e);
                     }
@@ -95,7 +111,7 @@ public class Main {
         } catch (ParseException e) {
             commandlineHandler.printHelp();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new AppException(e);
         }
     }
 }
