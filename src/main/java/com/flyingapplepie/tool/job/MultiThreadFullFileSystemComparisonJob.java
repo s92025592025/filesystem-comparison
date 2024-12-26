@@ -7,6 +7,7 @@ import com.flyingapplepie.tool.model.FileSystemComparisonSummary;
 import lombok.Getter;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
@@ -27,36 +28,31 @@ public class MultiThreadFullFileSystemComparisonJob extends FullFileSystemCompar
 
     @Override
     public FileSystemComparisonSummary executeComparison(Stream<Path> fsStream, SequenceWriter csvWriter) throws Exception {
-        long startTime = System.currentTimeMillis();
-        AtomicLong totalFileCount = new AtomicLong(0);
-        AtomicLong totalSameFilesCount = new AtomicLong(0);
-        AtomicLong totalDiffFilesCount = new AtomicLong(0);
 
         try (ForkJoinPool fileComparisonPool = new ForkJoinPool(this.threadCount)) {
-            csvWriter.writeAll(
-                    fileComparisonPool.submit(() ->
-                            ((Stream<ComparedRow>)this.fsStreamPreProcessing(fsStream.parallel()))
-                                    .peek(comparedRow -> {
-                                        totalFileCount.incrementAndGet();
+            long startTime = System.currentTimeMillis();
+            List<ComparedRow> allComparisonResult = fileComparisonPool.submit(() ->
+                    ((Stream<ComparedRow>)this.fsStreamPreProcessing(fsStream.parallel()))
+//                                    .peek(comparedRow -> {
+//                                        totalFileCount.incrementAndGet();
+//
+//                                        if (comparedRow.isSame()) {
+//                                            totalSameFilesCount.incrementAndGet();
+//                                        } else {
+//                                            totalDiffFilesCount.incrementAndGet();
+//                                        }
+//                                    })
+                            .toList()).get();
+            csvWriter.writeAll(allComparisonResult);
 
-                                        if (comparedRow.isSame()) {
-                                            totalSameFilesCount.incrementAndGet();
-                                        } else {
-                                            totalDiffFilesCount.incrementAndGet();
-                                        }
-                                    })
-                                    .toList()).get()
-            );
+            long endTime = System.currentTimeMillis();
 
+            return FileSystemComparisonSummary.builder()
+                    .totalRuntime(endTime - startTime)
+                    .totalComparedFileCount(allComparisonResult.size())
+                    .totalSameFilesCount(allComparisonResult.stream().filter(ComparedRow::isSame).count())
+                    .totalDiffFilesCount(allComparisonResult.stream().filter(row -> !row.isSame()).count())
+                    .build();
         }
-
-        long endTime = System.currentTimeMillis();
-
-        return FileSystemComparisonSummary.builder()
-                .totalRuntime(endTime - startTime)
-                .totalComparedFileCount(totalFileCount.get())
-                .totalSameFilesCount(totalSameFilesCount.get())
-                .totalDiffFilesCount(totalDiffFilesCount.get())
-                .build();
     }
 }
