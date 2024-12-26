@@ -38,7 +38,7 @@ public abstract class FullFileSystemComparisonJob {
      *                  to be writing for {@link com.flyingapplepie.tool.model.ComparedRow}
      * @return A {@link FileSystemComparisonSummary} with the comparison summary
      */
-    public abstract FileSystemComparisonSummary executeComparison(Stream<Path> fsStream, SequenceWriter csvWriter);
+    public abstract FileSystemComparisonSummary executeComparison(Stream<Path> fsStream, SequenceWriter csvWriter) throws Exception;
 
 
     /**

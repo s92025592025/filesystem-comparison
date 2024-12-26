@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.SequenceWriter;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 import com.flyingapplepie.tool.job.FileComparisonJob;
+import com.flyingapplepie.tool.job.FullFileSystemComparisonJob;
+import com.flyingapplepie.tool.job.SingleThreadFullFileSystemComparisonJob;
 import com.flyingapplepie.tool.model.ChecksumType;
 import com.flyingapplepie.tool.model.ComparedRow;
 import com.flyingapplepie.tool.util.CommandlineHandler;
@@ -13,6 +15,7 @@ import org.apache.commons.cli.*;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -42,6 +45,8 @@ public class Main {
                         .addColumn("isSame")
                         .build();
 
+                FullFileSystemComparisonJob fullFileSystemComparisonJob = null;
+
                 if (cmd.hasOption("T")) {
                     // Multi-Thread Logic
                     int threadCount = cmd.getParsedOptionValue("T", 4);
@@ -69,20 +74,18 @@ public class Main {
                     }
                 } else {
                     // Single Thread Logic
-                    try (SequenceWriter sequenceWriter = csvMapper.writerFor(ComparedRow.class).with(csvSchema).writeValues(outputCsvFilePath.toFile())) {
-                        try (Stream<Path> fsWalker = Files.walk(mainFileSystemBase)) {
-                            fsWalker.filter(Files::isRegularFile)
-                                    .map(mainFileSystemBase::relativize)
-                                    .map(relativeFilePath -> new FileComparisonJob(mainFileSystemBase.resolve(relativeFilePath), referenceFileSystemBase.resolve(relativeFilePath), ChecksumType.SHA256))
-                                    .map(FileComparisonJob::executeComparison)
-                                    .forEach(comparedRow -> {
-                                        try {
-                                            sequenceWriter.write(comparedRow);
-                                        } catch (IOException e) {
-                                            throw new RuntimeException(e);
-                                        }
-                                    });
-                        }
+                    fullFileSystemComparisonJob = new SingleThreadFullFileSystemComparisonJob(
+                            mainFileSystemBase,
+                            referenceFileSystemBase,
+                            ChecksumType.SHA256
+                    );
+                }
+
+                try (SequenceWriter sequenceWriter = csvMapper.writerFor(ComparedRow.class).with(csvSchema).writeValues(outputCsvFilePath.toFile())) {
+                    try (Stream<Path> fsWalker = Files.walk(mainFileSystemBase)) {
+                        fullFileSystemComparisonJob.executeComparison(fsWalker, sequenceWriter);
+                    } catch (Exception e) {
+                        throw new AppException(e);
                     }
                 }
             } else {
