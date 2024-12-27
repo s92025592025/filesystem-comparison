@@ -209,4 +209,20 @@ class CliIntegrationTest {
     }
 
     // TODO: Add Parallel Run Testing
+
+    /**
+     * When Parallel run is indicated, the number of threads used need to be shown
+     */
+    @Test
+    public void parallelRunThreadTest() {
+        fail("Not yet implemented");
+    }
+
+    /**
+     * Parallel Run and Single threaded run should have the same result
+     */
+    @Test
+    public void parallelAndSingleThreadSameResultTest() {
+        fail("Not yet Implemented");
+    }
 }
