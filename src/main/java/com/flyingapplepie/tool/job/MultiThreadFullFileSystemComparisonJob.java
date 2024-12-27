@@ -9,7 +9,6 @@ import lombok.Getter;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 public class MultiThreadFullFileSystemComparisonJob extends FullFileSystemComparisonJob {
@@ -33,15 +32,6 @@ public class MultiThreadFullFileSystemComparisonJob extends FullFileSystemCompar
             long startTime = System.currentTimeMillis();
             List<ComparedRow> allComparisonResult = fileComparisonPool.submit(() ->
                     ((Stream<ComparedRow>)this.fsStreamPreProcessing(fsStream.parallel()))
-//                                    .peek(comparedRow -> {
-//                                        totalFileCount.incrementAndGet();
-//
-//                                        if (comparedRow.isSame()) {
-//                                            totalSameFilesCount.incrementAndGet();
-//                                        } else {
-//                                            totalDiffFilesCount.incrementAndGet();
-//                                        }
-//                                    })
                             .toList()).get();
             csvWriter.writeAll(allComparisonResult);
 

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SequenceWriter;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
-import com.flyingapplepie.tool.job.FileComparisonJob;
 import com.flyingapplepie.tool.job.FullFileSystemComparisonJob;
 import com.flyingapplepie.tool.job.MultiThreadFullFileSystemComparisonJob;
 import com.flyingapplepie.tool.job.SingleThreadFullFileSystemComparisonJob;
@@ -12,19 +11,16 @@ import com.flyingapplepie.tool.model.ChecksumType;
 import com.flyingapplepie.tool.model.ComparedRow;
 import com.flyingapplepie.tool.model.FileSystemComparisonSummary;
 import com.flyingapplepie.tool.util.CommandlineHandler;
-import com.flyingapplepie.tool.util.FileSha256Calculator;
 import org.apache.commons.cli.*;
+import org.joda.time.Duration;
+import org.joda.time.PeriodType;
+import org.joda.time.format.PeriodFormat;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class Main {
@@ -61,28 +57,6 @@ public class Main {
                             threadCount,
                             ChecksumType.SHA256
                     );
-
-//                    try (ForkJoinPool fileComparisonPool = new ForkJoinPool(threadCount)) {
-//                        ObjectWriter csvObjectWriter = csvMapper.writerFor(ComparedRow.class).with(csvSchema);
-//
-//                        try (SequenceWriter sequenceWriter = csvObjectWriter.writeValues(outputCsvFilePath.toFile())) {
-//                            List<ComparedRow> allComparisonResults = fileComparisonPool.submit(() -> {
-//                                try (Stream<Path> fsWalker = Files.walk(mainFileSystemBase)) {
-//                                    return fsWalker.parallel().filter(Files::isRegularFile)
-//                                            .map(mainFileSystemBase::relativize)
-//                                            .map(relativeFilePath -> new FileComparisonJob(mainFileSystemBase.resolve(relativeFilePath), referenceFileSystemBase.resolve(relativeFilePath), ChecksumType.SHA256))
-//                                            .map(FileComparisonJob::executeComparison)
-//                                            .toList();
-//                                }
-//                            }).get();
-//
-//                            sequenceWriter.writeAll(allComparisonResults);
-//                        } catch (ExecutionException e) {
-//                            throw new AppException("Failed while performing parallel comparison, please try if single thread runs can remedy this issue\"", e);
-//                        } catch (InterruptedException e) {
-//                            throw new AppException("Parallel Comparison Interrupted, please try if single thread runs can remedy this issue", e);
-//                        }
-//                    }
                 } else {
                     // Single Thread Logic
                     fullFileSystemComparisonJob = new SingleThreadFullFileSystemComparisonJob(
@@ -96,6 +70,7 @@ public class Main {
                     try (Stream<Path> fsWalker = Files.walk(mainFileSystemBase)) {
                         FileSystemComparisonSummary comparisonSummary = fullFileSystemComparisonJob.executeComparison(fsWalker, sequenceWriter);
 
+                        System.out.println("Total Runtime: " + PeriodFormat.getDefault().print(new Duration(comparisonSummary.getTotalRuntime()).toPeriod().normalizedStandard(PeriodType.dayTime())));
                         System.out.println("Total Runtime(Minutes): " + TimeUnit.MILLISECONDS.toSeconds(comparisonSummary.getTotalRuntime()));
                         System.out.println("Total Files Compared: " + comparisonSummary.getTotalComparedFileCount());
                         System.out.println("Total Same files: " + comparisonSummary.getTotalSameFilesCount());
