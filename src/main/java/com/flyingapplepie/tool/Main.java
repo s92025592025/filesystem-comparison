@@ -71,7 +71,7 @@ public class Main {
                         FileSystemComparisonSummary comparisonSummary = fullFileSystemComparisonJob.executeComparison(fsWalker, sequenceWriter);
 
                         System.out.println("Total Runtime: " + PeriodFormat.getDefault().print(new Duration(comparisonSummary.getTotalRuntime()).toPeriod().normalizedStandard(PeriodType.dayTime())));
-                        System.out.println("Total Runtime(Minutes): " + TimeUnit.MILLISECONDS.toSeconds(comparisonSummary.getTotalRuntime()));
+                        System.out.println("Total Runtime(Seconds): " + TimeUnit.MILLISECONDS.toSeconds(comparisonSummary.getTotalRuntime()));
                         System.out.println("Total Files Compared: " + comparisonSummary.getTotalComparedFileCount());
                         System.out.println("Total Same files: " + comparisonSummary.getTotalSameFilesCount());
                         System.out.println("Total Different files: " + comparisonSummary.getTotalDiffFilesCount());
