@@ -36,4 +36,9 @@ usage: filesystem-comparison: Check if the files on main file system also
  -o,--output <arg>          Where the output csv file should go
  -rf,--reference-fs <arg>   Reference file system base directory when
                             comparing
+ -T,--threads <arg>         Indicates the amount of threads wanted to
+                            perform the comparison. Please note that this
+                            will force the tool to write all results at
+                            the end of the full comparison, and will lose
+                            all progress when error occurs
 ```
