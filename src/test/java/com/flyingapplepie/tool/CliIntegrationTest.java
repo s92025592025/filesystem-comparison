@@ -11,7 +11,9 @@ import org.junit.jupiter.api.Test;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -262,7 +264,79 @@ class CliIntegrationTest {
      * Parallel Run and Single threaded run should have the same result
      */
     @Test
-    public void parallelAndSingleThreadSameResultTest() {
-        fail("Not yet Implemented");
+    public void parallelAndSingleThreadSameResultTest() throws IOException {
+        Path mainFSDirectoryPath = Files.createTempDirectory("temp-test-main-fs-").toAbsolutePath();
+        Path referenceFSDirectoryPath = Files.createTempDirectory("tmp-test-reference-fs-").toAbsolutePath();
+        Path tmpSingleThreadReportFile = Files.createTempFile("report-output-", ".csv").toAbsolutePath();
+        Path tmpMultiThreadReportFile = Files.createTempFile("report-output-", ".csv").toAbsolutePath();
+
+        mainFSDirectoryPath.toFile().deleteOnExit();
+        referenceFSDirectoryPath.toFile().deleteOnExit();
+        tmpSingleThreadReportFile.toFile().deleteOnExit();
+        tmpMultiThreadReportFile.toFile().deleteOnExit();
+
+        int totalFiles = 10;
+        String fileNameTemplate = "sample-file-%d.txt";
+        String fileContentTemplate = "this is sample content %d";
+
+        for (int i = 0; i < totalFiles; i++) {
+            String fileName = fileNameTemplate.formatted(i);
+            String fileContent = fileContentTemplate.formatted(i);
+            try (PrintWriter mainFsFilePrintWriter
+                         = new PrintWriter(mainFSDirectoryPath.resolve(fileName).toString())) {
+                mainFsFilePrintWriter.println(fileContent);
+            }
+
+            try (PrintWriter referenceFsFilePrintWriter = new PrintWriter(
+                    referenceFSDirectoryPath.resolve(fileName).toString()
+            )) {
+                referenceFsFilePrintWriter.println(fileContent);
+            }
+        }
+
+        String argsSingleThread[] = {
+                "-mf", mainFSDirectoryPath.toString(),
+                "-rf", referenceFSDirectoryPath.toString(),
+                "-o", tmpSingleThreadReportFile.toString()
+        };
+
+        String argsMultiThread[] = {
+                "-mf", mainFSDirectoryPath.toString(),
+                "-rf", referenceFSDirectoryPath.toString(),
+                "-T", "2",
+                "-o", tmpMultiThreadReportFile.toString()
+        };
+
+        Main.main(argsSingleThread);
+        Main.main(argsMultiThread);
+
+        CsvMapper csvMapper = new CsvMapper();
+        CsvSchema csvSchema = csvMapper
+                .typedSchemaFor(ComparedRow.class)
+                .withHeader()
+                .withColumnReordering(true);
+
+        List<ComparedRow> singleThreadResult = null;
+        try(MappingIterator<ComparedRow> reportRowIterator = csvMapper
+                .readerWithSchemaFor(ComparedRow.class)
+                .with(csvSchema)
+                .readValues(tmpSingleThreadReportFile.toFile())) {
+            singleThreadResult = reportRowIterator.readAll();
+        }
+
+        List<ComparedRow> multiThreadResult = null;
+        try(MappingIterator<ComparedRow> reportRowIterator = csvMapper
+                .readerWithSchemaFor(ComparedRow.class)
+                .with(csvSchema)
+                .readValues(tmpMultiThreadReportFile.toFile())) {
+            multiThreadResult = reportRowIterator.readAll();
+        }
+
+        assertEquals(multiThreadResult.size(), singleThreadResult.size());
+
+        Set<ComparedRow> singleThreadResultSet = new HashSet<>(singleThreadResult);
+        multiThreadResult.forEach(
+                multiThreadComparedRow -> assertTrue(singleThreadResultSet.contains(multiThreadComparedRow))
+        );
     }
 }
