@@ -1,22 +1,26 @@
 package com.flyingapplepie.tool;
 
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SequenceWriter;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
-import com.flyingapplepie.tool.job.FileComparisonJob;
+import com.flyingapplepie.tool.job.FullFileSystemComparisonJob;
+import com.flyingapplepie.tool.job.MultiThreadFullFileSystemComparisonJob;
+import com.flyingapplepie.tool.job.SingleThreadFullFileSystemComparisonJob;
 import com.flyingapplepie.tool.model.ChecksumType;
 import com.flyingapplepie.tool.model.ComparedRow;
+import com.flyingapplepie.tool.model.FileSystemComparisonSummary;
 import com.flyingapplepie.tool.util.CommandlineHandler;
-import com.flyingapplepie.tool.util.FileSha256Calculator;
 import org.apache.commons.cli.*;
+import org.joda.time.Duration;
+import org.joda.time.PeriodType;
+import org.joda.time.format.PeriodFormat;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 public class Main {
@@ -39,20 +43,40 @@ public class Main {
                         .addColumn("comparisonSystemChecksum")
                         .addColumn("isSame")
                         .build();
+                ObjectWriter csvObjectWriter = csvMapper.writerFor(ComparedRow.class).with(csvSchema);
 
-                try (SequenceWriter sequenceWriter = csvMapper.writerFor(ComparedRow.class).with(csvSchema).writeValues(outputCsvFilePath.toFile())) {
+                FullFileSystemComparisonJob fullFileSystemComparisonJob = null;
+
+                if (cmd.hasOption("T")) {
+                    // Multi-Thread Logic
+                    int threadCount = cmd.getParsedOptionValue("T", 4);
+                    System.out.println("Using " + threadCount + " thread to perform the comparison");
+                    fullFileSystemComparisonJob = new MultiThreadFullFileSystemComparisonJob(
+                            mainFileSystemBase,
+                            referenceFileSystemBase,
+                            threadCount,
+                            ChecksumType.SHA256
+                    );
+                } else {
+                    // Single Thread Logic
+                    fullFileSystemComparisonJob = new SingleThreadFullFileSystemComparisonJob(
+                            mainFileSystemBase,
+                            referenceFileSystemBase,
+                            ChecksumType.SHA256
+                    );
+                }
+
+                try (SequenceWriter sequenceWriter = csvObjectWriter.writeValues(outputCsvFilePath.toFile())) {
                     try (Stream<Path> fsWalker = Files.walk(mainFileSystemBase)) {
-                        fsWalker.filter(Files::isRegularFile)
-                                .map(mainFileSystemBase::relativize)
-                                .map(relativeFilePath -> new FileComparisonJob(mainFileSystemBase.resolve(relativeFilePath), referenceFileSystemBase.resolve(relativeFilePath), ChecksumType.SHA256))
-                                .map(FileComparisonJob::executeComparison)
-                                .forEach(comparedRow -> {
-                                    try {
-                                        sequenceWriter.write(comparedRow);
-                                    } catch (IOException e) {
-                                        throw new RuntimeException(e);
-                                    }
-                                });
+                        FileSystemComparisonSummary comparisonSummary = fullFileSystemComparisonJob.executeComparison(fsWalker, sequenceWriter);
+
+                        System.out.println("Total Runtime: " + PeriodFormat.getDefault().print(new Duration(comparisonSummary.getTotalRuntime()).toPeriod().normalizedStandard(PeriodType.dayTime())));
+                        System.out.println("Total Runtime(Seconds): " + TimeUnit.MILLISECONDS.toSeconds(comparisonSummary.getTotalRuntime()));
+                        System.out.println("Total Files Compared: " + comparisonSummary.getTotalComparedFileCount());
+                        System.out.println("Total Same files: " + comparisonSummary.getTotalSameFilesCount());
+                        System.out.println("Total Different files: " + comparisonSummary.getTotalDiffFilesCount());
+                    } catch (Exception e) {
+                        throw new AppException(e);
                     }
                 }
             } else {
@@ -62,7 +86,7 @@ public class Main {
         } catch (ParseException e) {
             commandlineHandler.printHelp();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new AppException(e);
         }
     }
 }
