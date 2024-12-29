@@ -4,9 +4,6 @@ import com.fasterxml.jackson.databind.MappingIterator;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 import com.flyingapplepie.tool.model.ComparedRow;
-import org.joda.time.Duration;
-import org.joda.time.PeriodType;
-import org.joda.time.format.PeriodFormat;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -214,8 +211,51 @@ class CliIntegrationTest {
      * When Parallel run is indicated, the number of threads used need to be shown
      */
     @Test
-    public void parallelRunThreadTest() {
-        fail("Not yet implemented");
+    public void parallelRunThreadTest() throws IOException {
+        ByteArrayOutputStream outArray = new ByteArrayOutputStream();
+        ByteArrayOutputStream errArray = new ByteArrayOutputStream();
+
+        System.setErr(new PrintStream(errArray));
+        System.setOut(new PrintStream(outArray));
+
+        Path mainFSDirectoryPath = Files.createTempDirectory("temp-test-main-fs-").toAbsolutePath();
+        Path referenceFSDirectoryPath = Files.createTempDirectory("tmp-test-reference-fs-").toAbsolutePath();
+        Path tmpReportFile = Files.createTempFile("report-output-", ".csv").toAbsolutePath();
+
+        mainFSDirectoryPath.toFile().deleteOnExit();
+        referenceFSDirectoryPath.toFile().deleteOnExit();
+        tmpReportFile.toFile().deleteOnExit();
+
+        int totalFiles = 10;
+        String fileNameTemplate = "sample-file-%d.txt";
+        String fileContentTemplate = "this is sample content %d";
+
+        for (int i = 0; i < totalFiles; i++) {
+            String fileName = fileNameTemplate.formatted(i);
+            String fileContent = fileContentTemplate.formatted(i);
+            try (PrintWriter mainFsFilePrintWriter
+                         = new PrintWriter(mainFSDirectoryPath.resolve(fileName).toString())) {
+                mainFsFilePrintWriter.println(fileContent);
+            }
+
+            try (PrintWriter referenceFsFilePrintWriter = new PrintWriter(
+                    referenceFSDirectoryPath.resolve(fileName).toString()
+            )) {
+                referenceFsFilePrintWriter.println(fileContent);
+            }
+        }
+
+        String args[] = {
+                "-mf", mainFSDirectoryPath.toString(),
+                "-rf", referenceFSDirectoryPath.toString(),
+                "-T", "2",
+                "-o", tmpReportFile.toString()
+        };
+
+        Main.main(args);
+
+        assertTrue(outArray.toString().trim().startsWith("Using 2 thread to perform the comparison".trim()));
+
     }
 
     /**
